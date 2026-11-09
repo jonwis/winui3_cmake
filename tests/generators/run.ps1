@@ -48,7 +48,7 @@ Assert ((Arguments 'midl') -contains (Join-Path $BuildDirectory 'include with sp
 $custom = Arguments 'midl-custom'
 Assert (($custom -contains '/winrt') -and -not ($custom -contains '/nologo')) 'NO_DEFAULT_ARGS must preserve only explicit flags'
 $merge = Arguments 'merge'
-Assert (($merge -contains '-n:3') -and (@($merge | Where-Object { $_ -eq '-metadata_dir' }).Count -eq 2)) 'Merge depth and duplicate directory order'
+Assert (($merge -contains '-n:3') -and (@($merge | Where-Object { $_ -eq '-metadata_dir' }).Count -eq 1)) 'Merge depth and deduplicated metadata directory'
 $default = Arguments 'default-merge'
 Assert (-not (@($default | Where-Object { $_ -like '-n:*' }).Count) -and -not ($default -contains '-partial')) 'Default depth and NO_PARTIAL'
 Assert ((Arguments 'zero-merge') -contains '-n:0') 'Explicit zero merge depth must not become the default'

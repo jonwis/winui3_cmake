@@ -57,8 +57,8 @@ generator.
 `merge_winmds` still defaults to `-partial -n:1`. `DEPTH DEFAULT` omits `-n`;
 `NO_PARTIAL` omits `-partial`. An explicit `OUTPUTS` list replaces the single
 `OUTDIR/NAMESPACE.winmd` contract. `METADATA_DIRS` replaces directories derived
-from `REF`, preserving its order and duplicates. Extra arguments are appended
-after these standard options.
+from `REF`, retaining unique directories in first-seen order after path
+normalization. Extra arguments are appended after these standard options.
 
 After successful merges, an output inventory removes only previously declared,
 now-obsolete files contained within the output root. Unlisted files and files
