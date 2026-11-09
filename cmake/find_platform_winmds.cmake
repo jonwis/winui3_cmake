@@ -1,8 +1,8 @@
 # Obtain list of UAP platform .winmds
 include_guard()
 
-include(require_arguments)
-include(win10sdk_root)
+include("${CMAKE_CURRENT_LIST_DIR}/require_arguments.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/win10sdk_root.cmake")
 
 # Obtain list of UAP platform .winmds
 #

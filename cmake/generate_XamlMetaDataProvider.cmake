@@ -1,7 +1,7 @@
 # Generate XamlMetaDataProvider files
 include_guard()
 
-include(require_arguments)
+include("${CMAKE_CURRENT_LIST_DIR}/require_arguments.cmake")
 
 # Generate XamlMetaDataProvider files
 #
@@ -15,8 +15,15 @@ function(generate_XamlMetaDataProvider)
     # WINSDK_VERSION is unused and only here so "common arguments" can be added
     require_arguments(generate OUTDIR IDL_VAR CPP_VAR NAMESPACE)
 
-    set(NAMESPACE "${generate_NAMESPACE}")
+    set(ROOT_NAMESPACE "${generate_NAMESPACE}")
     set(XAML_NAMESPACE "Microsoft.UI.Xaml")
+    if(NOT DEFINED XAML_MARKUP_IDL_IMPORT)
+        set(XAML_MARKUP_IDL_IMPORT "")
+    endif()
+    if(NOT DEFINED FULL_XAML_METADATA_PROVIDE_ATTRIBUTE)
+        set(FULL_XAML_METADATA_PROVIDE_ATTRIBUTE "")
+    endif()
+    set(XAML_META_DATA_PROVIDER_PCH "")
     if(generate_PCH)
         set(XAML_META_DATA_PROVIDER_PCH "#include \"${generate_PCH}\"")
     endif()

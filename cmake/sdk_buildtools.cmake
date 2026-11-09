@@ -1,8 +1,8 @@
 # Get path to a tool in the Microsoft.Windows.SDK.BuildTools package
 include_guard()
 
-include(arch_name)
-include(check_nuget_package)
+include("${CMAKE_CURRENT_LIST_DIR}/arch_name.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/check_nuget_package.cmake")
 check_nuget_package(Microsoft.Windows.SDK.BuildTools REQUIRED)
 
 # Get path to a tool in the Microsoft.Windows.SDK.BuildTools package

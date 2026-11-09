@@ -1,8 +1,7 @@
 # Generate a .pri file from a list of files
 include_guard()
 
-include(sdk_buildtools)
-find_sdk_buildtool(MAKEPRI makepri REQUIRED)
+include("${CMAKE_CURRENT_LIST_DIR}/require_arguments.cmake")
 
 # Helper: Generate file with each item in LIST being a separate line
 function(_file_generate_from_list FILE LIST)
@@ -43,32 +42,115 @@ function(_make_pri_prepare PRICONFIG_VAR makepri_OUTPUT makepri_DIRECTORY)
     set(${PRICONFIG_VAR} "${priconfig_path}" PARENT_SCOPE)
 endfunction()
 
-# Helper: Assemble MAKEPRI command
-function(_make_pri_command COMMAND_VAR makepri_OUTPUT priconfig_path)
-    set(${COMMAND_VAR} powershell "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/wrap_makepri.ps1" "'${MAKEPRI}' new /cf '${priconfig_path}' /pr '${CMAKE_CURRENT_SOURCE_DIR}' /o /of '${makepri_OUTPUT}'" PARENT_SCOPE)
+# XML attribute escaping for caller-provided paths and index names.
+function(_make_pri_escape VAR VALUE)
+    string(REPLACE "&" "&amp;" VALUE "${VALUE}")
+    string(REPLACE "\"" "&quot;" VALUE "${VALUE}")
+    string(REPLACE "<" "&lt;" VALUE "${VALUE}")
+    string(REPLACE ">" "&gt;" VALUE "${VALUE}")
+    set(${VAR} "${VALUE}" PARENT_SCOPE)
 endfunction()
 
-# Generate a .pri file
-#
-# OUTPUT - Name of .pri to generate
-# DIRECTORY - Directory containing files to include in .pri
-# FILES - Files include in .pri
-function(make_pri)
-    cmake_parse_arguments(makepri "" "OUTPUT;DIRECTORY" "FILES" ${ARGV})
-    require_arguments(makepri OUTPUT DIRECTORY)
-
-    _make_pri_prepare(priconfig_path "${makepri_OUTPUT}" "${makepri_DIRECTORY}" ${makepri_FILES})
-
-    set(depend_paths "")
-    foreach(file ${makepri_FILES})
-        list(APPEND depend_paths "${makepri_DIRECTORY}/${file}")
+# Shared preparation for output-based and original post-build entrypoints.
+function(_make_pri_setup COMMAND_VAR DEPENDS_VAR)
+    cmake_parse_arguments(PARSE_ARGV 2 pri "EMPTY;RESOURCE_INPUTS;RESW;RESJSON;PRI;RESFILES"
+        "OUTPUT;DIRECTORY;TOOL;CONFIG_XML;PROJECT_ROOT;INDEX_NAME" "FILES;DEPENDS;ARGS")
+    require_arguments(pri OUTPUT)
+    cmake_path(ABSOLUTE_PATH pri_OUTPUT BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" NORMALIZE)
+    if(NOT pri_TOOL)
+        include("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/sdk_buildtools.cmake")
+        find_sdk_buildtool(MAKEPRI makepri REQUIRED)
+        set(pri_TOOL "${MAKEPRI}")
+    endif()
+    if(NOT pri_PROJECT_ROOT)
+        set(pri_PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
+    set(dependencies "${pri_TOOL}" ${pri_DEPENDS})
+    if(pri_CONFIG_XML)
+        set(config "${pri_CONFIG_XML}")
+        cmake_path(ABSOLUTE_PATH config BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" NORMALIZE)
+    else()
+        require_arguments(pri DIRECTORY)
+        set(resfiles "${pri_OUTPUT}.resfiles")
+        set(config "${pri_OUTPUT}.xml")
+        if(pri_EMPTY OR pri_RESOURCE_INPUTS)
+            set(native_files "")
+            foreach(input IN LISTS pri_FILES)
+                cmake_path(NATIVE_PATH input native_input)
+                list(APPEND native_files "${native_input}")
+            endforeach()
+            _file_generate_from_list("${resfiles}" "${native_files}")
+            set(PRI_ROOT "\\")
+            cmake_path(NATIVE_PATH resfiles native_resfiles)
+            _make_pri_escape(PRI_RESFILES "${native_resfiles}")
+            _make_pri_escape(PRI_INDEX_NAME "${pri_INDEX_NAME}")
+            set(PRI_INDEXERS "")
+            if(pri_RESOURCE_INPUTS)
+                if(NOT (pri_RESW OR pri_RESJSON OR pri_PRI OR pri_RESFILES))
+                    set(pri_RESW TRUE)
+                    set(pri_RESJSON TRUE)
+                    set(pri_PRI TRUE)
+                    set(pri_RESFILES TRUE)
+                endif()
+                if(pri_RESW)
+                    string(APPEND PRI_INDEXERS "<indexer-config type=\"RESW\" convertDotsToSlashes=\"true\" initialPath=\"${PRI_INDEX_NAME}\" />\n")
+                endif()
+                if(pri_RESJSON)
+                    string(APPEND PRI_INDEXERS "<indexer-config type=\"RESJSON\" initialPath=\"${PRI_INDEX_NAME}\" />\n")
+                endif()
+                if(pri_PRI)
+                    string(APPEND PRI_INDEXERS "<indexer-config type=\"PRI\" />\n")
+                endif()
+            endif()
+            if(pri_EMPTY OR pri_RESFILES)
+                string(APPEND PRI_INDEXERS "<indexer-config type=\"RESFILES\" qualifierDelimiter=\".\" />\n")
+            endif()
+            set(template "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/pri_config.xml.in")
+            configure_file("${template}" "${config}" @ONLY)
+            list(APPEND dependencies "${template}")
+        else()
+            _make_pri_prepare(config "${pri_OUTPUT}" "${pri_DIRECTORY}" ${pri_FILES})
+        endif()
+        list(APPEND dependencies "${resfiles}")
+    endif()
+    list(APPEND dependencies "${config}" "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/wrap_makepri.ps1")
+    foreach(input IN LISTS pri_FILES)
+        if(IS_ABSOLUTE "${input}")
+            list(APPEND dependencies "${input}")
+        else()
+            if(pri_DIRECTORY)
+                list(APPEND dependencies "${pri_DIRECTORY}/${input}")
+            else()
+                list(APPEND dependencies "${pri_PROJECT_ROOT}/${input}")
+            endif()
+        endif()
     endforeach()
+    set(command powershell -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/wrap_makepri.ps1"
+        "${pri_TOOL}" New -ProjectRoot "${pri_PROJECT_ROOT}"
+        -ConfigXml "${config}" -OutputFile "${pri_OUTPUT}" -Overwrite)
+    if(pri_INDEX_NAME)
+        list(APPEND command -IndexName "${pri_INDEX_NAME}")
+    endif()
+    list(APPEND command ${pri_ARGS})
+    set(${COMMAND_VAR} "${command}" PARENT_SCOPE)
+    set(${DEPENDS_VAR} "${dependencies}" PARENT_SCOPE)
+endfunction()
 
-    _make_pri_command(pri_command "${makepri_OUTPUT}" "${priconfig_path}")
+function(make_pri)
+    cmake_parse_arguments(PARSE_ARGV 0 makepri "" "OUTPUT" "")
+    require_arguments(makepri OUTPUT)
+    cmake_path(ABSOLUTE_PATH makepri_OUTPUT BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" NORMALIZE)
+    _make_pri_setup(pri_command pri_dependencies ${ARGV})
+    cmake_path(GET makepri_OUTPUT PARENT_PATH output_dir)
+    if(NOT output_dir)
+        set(output_dir "${CMAKE_CURRENT_BINARY_DIR}")
+    endif()
     add_custom_command(OUTPUT "${makepri_OUTPUT}"
-                       COMMAND ${pri_command}
-                       DEPENDS ${depend_paths}
-                      )
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${output_dir}"
+        COMMAND ${pri_command}
+        DEPENDS ${pri_dependencies}
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" VERBATIM)
 endfunction()
 
 # Generate a .pri file as post-build step to TARGET
@@ -78,13 +160,13 @@ endfunction()
 # DIRECTORY - Directory containing files to include in .pri
 # FILES - Files include in .pri
 function(make_pri_postbuild TARGET)
-    cmake_parse_arguments(makepri "" "OUTPUT;DIRECTORY" "FILES" ${ARGN})
-    require_arguments(makepri OUTPUT DIRECTORY)
-
-    _make_pri_prepare(priconfig_path "${makepri_OUTPUT}" "${makepri_DIRECTORY}" ${makepri_FILES})
-
-    _make_pri_command(pri_command "${makepri_OUTPUT}" "${priconfig_path}")
+    cmake_parse_arguments(PARSE_ARGV 1 makepri "" "OUTPUT" "")
+    require_arguments(makepri OUTPUT)
+    cmake_path(ABSOLUTE_PATH makepri_OUTPUT BASE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" NORMALIZE)
+    cmake_path(GET makepri_OUTPUT PARENT_PATH output_dir)
+    _make_pri_setup(pri_command pri_dependencies ${ARGN})
     add_custom_command(TARGET ${TARGET}
                        POST_BUILD
-                       COMMAND ${pri_command})
+                       COMMAND "${CMAKE_COMMAND}" -E make_directory "${output_dir}"
+                       COMMAND ${pri_command} VERBATIM)
 endfunction()

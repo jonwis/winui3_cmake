@@ -1,9 +1,16 @@
 # Wrapper to deal w/ makepri.exe outputting raw UTF-16
 # https://github.com/PowerShell/PowerShell/discussions/17163
 $origEncoding = [Console]::OutputEncoding
+$exitCode = 1
 try {
     [Console]::OutputEncoding = [System.Text.Encoding]::Unicode
-    $output = ( & "$($args[0])" $args[1..($args.Count-1)] 2>&1 ) # FIXME: 2>&1 seems to add some weirdness ('System.Management.Automation.RemoteException' outputs)
+    $tool = $args[0]
+    $toolArgs = @($args | Select-Object -Skip 1)
+    $output = (& $tool @toolArgs 2>&1)
+    $exitCode = $LASTEXITCODE
+    if ($null -eq $exitCode) {
+        $exitCode = 1
+    }
 }
 finally {
     [Console]::OutputEncoding = $origEncoding
@@ -13,3 +20,4 @@ foreach($x in $output)
 {
     Write-Host $x
 }
+exit $exitCode

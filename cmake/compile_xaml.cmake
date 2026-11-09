@@ -55,7 +55,7 @@ function(compile_xaml)
     set(xaml_input_json_path "${CMAKE_CURRENT_BINARY_DIR}/${compile_xaml_TARGET}.pass1.in.json")
     set(xaml_output_json_path "${CMAKE_CURRENT_BINARY_DIR}/${compile_xaml_TARGET}.pass1.out.json")
     json_obj_new(xaml_input_json)
-    json_obj_set_str(xaml_input_json "SavedStateFile" "${CMAKE_CURRENT_BINARY_DIR}/XamlCompilerState.xml")
+    json_obj_set_str(xaml_input_json "SavedStateFile" "${CMAKE_CURRENT_BINARY_DIR}/${compile_xaml_TARGET}.XamlCompilerState.xml")
     json_obj_set(xaml_input_json "IsPass1" "true")
     json_obj_set_str(xaml_input_json "Language" "CppWinRT")
     json_obj_set_str(xaml_input_json "ProjectPath" "${CMAKE_CURRENT_LIST_FILE}") # Used to compute some relative paths

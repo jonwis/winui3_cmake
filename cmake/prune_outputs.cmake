@@ -1,0 +1,18 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+cmake_minimum_required(VERSION 3.24)
+# Only successful generations may replace their previously owned output inventory.
+file(STRINGS "${INVENTORY}" current)
+file(REAL_PATH "${ROOT}" root_real)
+if(EXISTS "${OWNED}")
+    file(STRINGS "${OWNED}" previous)
+    foreach(output IN LISTS previous)
+        if(NOT output IN_LIST current AND EXISTS "${output}" AND NOT IS_DIRECTORY "${output}")
+            file(REAL_PATH "${output}" output_real)
+            cmake_path(IS_PREFIX root_real "${output_real}" NORMALIZE contained)
+            if(contained)
+                file(REMOVE "${output}")
+            endif()
+        endif()
+    endforeach()
+endif()
+file(COPY_FILE "${INVENTORY}" "${OWNED}" ONLY_IF_DIFFERENT)
