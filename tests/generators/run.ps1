@@ -41,6 +41,9 @@ RunCMake @('-S', $PSScriptRoot, '-B', $BuildDirectory, '-G', 'Ninja',
 Build
 Assert ((Count 'midl') -eq 1) 'First IDL generation must run once'
 Assert ((Arguments 'midl') -contains '/winrt') 'WinRT driver flag must be direct'
+$midlArguments = Arguments 'midl'
+$metadataIndex = [Array]::IndexOf($midlArguments, '/metadata_dir')
+Assert (($metadataIndex -ge 0) -and ($midlArguments[$metadataIndex + 1] -eq (Join-Path $BuildDirectory 'references'))) 'Structured metadata directory must use native path spelling'
 Assert ((Arguments 'midl') -contains (Join-Path $BuildDirectory 'include with spaces').Replace('\', '/')) 'Include path must remain one argument'
 $custom = Arguments 'midl-custom'
 Assert (($custom -contains '/winrt') -and -not ($custom -contains '/nologo')) 'NO_DEFAULT_ARGS must preserve only explicit flags'
