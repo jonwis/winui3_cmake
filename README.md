@@ -39,8 +39,11 @@ relative to `WORKING_DIRECTORY` (default: the calling source directory); output
 roots are relative to the calling binary directory. Declare every consumed output
 in `OUTPUTS` and incidental generated files in `BYPRODUCTS` so Ninja can recover
 when they are deleted. Reference-directory WinMDs are tracked recursively, without
-examining their namespaces. For not-yet-created reference directories, supply their
-producing target/files through `DEPENDS`.
+examining their namespaces. Directory-valued `IN`/`REF` must exist at configure
+time; generated contents additionally need explicit producer/file `DEPENDS`.
+An absent `IN`/`REF` path is treated as a file dependency, not inferred to be a
+future directory. Separate `METADATA_DIR`/`METADATA_DIRS` may be supplied before
+their contents exist, with explicit producer/file `DEPENDS` for those contents.
 
 ## WinRT metadata
 
