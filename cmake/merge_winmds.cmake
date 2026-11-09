@@ -10,8 +10,9 @@ include("${CMAKE_CURRENT_LIST_DIR}/require_arguments.cmake")
 # NAMESPACE - Namespace of declarations in .winmds
 # IN - .winmds to merge
 # REF - Reference .winmd files to use
+# EXPLICIT_DEPENDENCIES - Track only IN, REF and DEPENDS; metadata directories are search paths
 function(merge_winmds)
-    cmake_parse_arguments(PARSE_ARGV 0 merge_winmds "NO_PARTIAL"
+    cmake_parse_arguments(PARSE_ARGV 0 merge_winmds "NO_PARTIAL;EXPLICIT_DEPENDENCIES"
         "TARGET;OUTDIR;NAMESPACE;WINSDK_VERSION;PCH;TOOL;DEPTH;WORKING_DIRECTORY"
         "IN;REF;OUTPUTS;METADATA_DIRS;ARGS;DEPENDS")
     # WINSDK_VERSION, PCH are unused and only here so "common arguments" can be added
@@ -45,13 +46,15 @@ function(merge_winmds)
         set(winmd_ref_paths ${merge_winmds_METADATA_DIRS})
     endif()
     set(metadata_dependencies "")
-    foreach(metadata_dir IN LISTS winmd_ref_paths)
-        cmake_path(ABSOLUTE_PATH metadata_dir BASE_DIRECTORY "${merge_winmds_WORKING_DIRECTORY}" NORMALIZE)
-        if(IS_DIRECTORY "${metadata_dir}")
-            file(GLOB_RECURSE metadata_files CONFIGURE_DEPENDS "${metadata_dir}/*.winmd")
-            list(APPEND metadata_dependencies ${metadata_files})
-        endif()
-    endforeach()
+    if(NOT merge_winmds_EXPLICIT_DEPENDENCIES)
+        foreach(metadata_dir IN LISTS winmd_ref_paths)
+            cmake_path(ABSOLUTE_PATH metadata_dir BASE_DIRECTORY "${merge_winmds_WORKING_DIRECTORY}" NORMALIZE)
+            if(IS_DIRECTORY "${metadata_dir}")
+                file(GLOB_RECURSE metadata_files CONFIGURE_DEPENDS "${metadata_dir}/*.winmd")
+                list(APPEND metadata_dependencies ${metadata_files})
+            endif()
+        endforeach()
+    endif()
     set(input_dependencies "")
     foreach(input IN LISTS merge_winmds_IN merge_winmds_REF)
         cmake_path(ABSOLUTE_PATH input BASE_DIRECTORY "${merge_winmds_WORKING_DIRECTORY}" NORMALIZE)
