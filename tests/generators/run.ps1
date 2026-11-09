@@ -48,6 +48,7 @@ $merge = Arguments 'merge'
 Assert (($merge -contains '-n:3') -and (@($merge | Where-Object { $_ -eq '-metadata_dir' }).Count -eq 2)) 'Merge depth and duplicate directory order'
 $default = Arguments 'default-merge'
 Assert (-not (@($default | Where-Object { $_ -like '-n:*' }).Count) -and -not ($default -contains '-partial')) 'Default depth and NO_PARTIAL'
+Assert ((Arguments 'zero-merge') -contains '-n:0') 'Explicit zero merge depth must not become the default'
 $component = Arguments 'component'
 Assert (($component -contains '-pch') -and ($component -contains '-optimize')) 'Component PCH and optimization'
 $bare = Arguments 'bare'
@@ -60,11 +61,13 @@ Assert (@($resource.resources.index.'indexer-config').Count -eq 4) 'Resource PRI
 Assert ($resource.resources.index.'indexer-config'[0].initialPath -eq 'Contoso') 'Resource initial path'
 Assert ($resource.resources.index.'indexer-config'[0].convertDotsToSlashes -eq 'true') 'Dotted RESW conversion'
 Assert ($resource.resources.index.startIndexAt -notmatch '/') 'Resource manifest path must use native spelling'
+$resourceEntries = @(Get-Content (Join-Path $root 'resources.pri.resfiles'))
+Assert ($resourceEntries -contains (Join-Path $BuildDirectory 'strings.resw')) 'Relative resource entry must resolve against DIRECTORY to its absolute native path'
 [xml] $native = Get-Content (Join-Path $root 'native.pri.xml') -Raw
 Assert (@($native.resources.index.'indexer-config' | Where-Object type -eq 'EMBEDFILES').Count -eq 1) 'Original native PRI mode'
 Assert ((Get-Content (Join-Path $root 'provider\XamlMetaDataProvider.idl') -Raw) -match 'namespace Contoso') 'Provider must not use ambient namespace'
 $counts = @{}
-foreach ($name in @('midl', 'midl-custom', 'merge', 'default-merge', 'component', 'bare', 'empty', 'resources', 'native', 'custom')) {
+foreach ($name in @('midl', 'midl-custom', 'merge', 'default-merge', 'zero-merge', 'component', 'bare', 'empty', 'resources', 'native', 'custom')) {
     $counts[$name] = Count $name
 }
 Build

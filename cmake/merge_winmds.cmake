@@ -29,7 +29,7 @@ function(merge_winmds)
         require_arguments(merge_winmds NAMESPACE)
         set(merge_winmds_OUTPUTS "${merge_winmds_OUTDIR}/${merge_winmds_NAMESPACE}.winmd")
     endif()
-    if(NOT merge_winmds_DEPTH)
+    if(NOT DEFINED merge_winmds_DEPTH)
         set(merge_winmds_DEPTH 1)
     endif()
 

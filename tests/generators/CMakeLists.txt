@@ -52,6 +52,10 @@ merge_winmds(TARGET default_merged OUTDIR "${root}/default" TOOL "${tool}"
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     ARGS --kind merge --outputs "${root}/default/Contoso.winmd"
     --log "${CMAKE_CURRENT_BINARY_DIR}/default-merge.jsonl")
+merge_winmds(TARGET zero_merged OUTDIR "${root}/zero" TOOL "${tool}"
+    NAMESPACE Tailspin DEPTH 0 IN "${root}/Contoso.Input.winmd"
+    ARGS --kind merge --outputs "${root}/zero/Tailspin.winmd"
+    --log "${CMAKE_CURRENT_BINARY_DIR}/zero-merge.jsonl")
 
 set(component "${root}/component")
 run_cppwinrt(TARGET component OUT "${component}" TOOL "${tool}"
@@ -86,7 +90,7 @@ make_pri(OUTPUT "${root}/custom.pri" TOOL "${tool}"
 make_pri(OUTPUT "${root}/failure.pri" DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     TOOL "${tool}" EMPTY ARGS --kind fail --log "${CMAKE_CURRENT_BINARY_DIR}/failure.jsonl")
 add_custom_target(failure DEPENDS "${root}/failure.pri")
-add_custom_target(check ALL DEPENDS merged default_merged component bare
+add_custom_target(check ALL DEPENDS merged default_merged zero_merged component bare
     "${root}/Tailspin.Input.winmd" "${root}/empty.pri" "${root}/resources.pri"
     "${root}/native.pri" "${root}/custom.pri")
 
