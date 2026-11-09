@@ -28,7 +28,7 @@ The executable itself is a build dependency.
 | Helper | Optional explicit controls |
 | --- | --- |
 | `winmd_from_idl` | `TOOL`, `METADATA_DIR`, `INCLUDE_DIRS`, `ARGS`, `DEPENDS`, `OUTPUTS`, `BYPRODUCTS`, `WORKING_DIRECTORY`, `NO_DEFAULT_ARGS` |
-| `merge_winmds` | `TOOL`, `OUTPUTS`, `DEPTH`, `METADATA_DIRS`, `NO_PARTIAL`, `ARGS`, `DEPENDS`, `WORKING_DIRECTORY` |
+| `merge_winmds` | `TOOL`, `OUTPUTS`, `DEPTH`, `METADATA_DIRS`, `NO_PARTIAL`, `EXPLICIT_DEPENDENCIES`, `ARGS`, `DEPENDS`, `WORKING_DIRECTORY` |
 | `run_cppwinrt` | `TOOL`, `OUTPUTS`, `BYPRODUCTS`, `DEPENDS`, `ARGS`, `WORKING_DIRECTORY`, `BARE_COMPONENT` |
 | `make_pri`, `make_pri_postbuild` | `TOOL`, `CONFIG_XML`, `PROJECT_ROOT`, `INDEX_NAME`, `DEPENDS`, `ARGS`, `EMPTY`, `RESOURCE_INPUTS` |
 
@@ -39,7 +39,8 @@ relative to `WORKING_DIRECTORY` (default: the calling source directory); output
 roots are relative to the calling binary directory. Declare every consumed output
 in `OUTPUTS` and incidental generated files in `BYPRODUCTS` so Ninja can recover
 when they are deleted. Reference-directory WinMDs are tracked recursively, without
-examining their namespaces. Directory-valued `IN`/`REF` must exist at configure
+examining their namespaces, except when `merge_winmds(EXPLICIT_DEPENDENCIES)` is
+selected as described below. Directory-valued `IN`/`REF` must exist at configure
 time; generated contents additionally need explicit producer/file `DEPENDS`.
 An absent `IN`/`REF` path is treated as a file dependency, not inferred to be a
 future directory. Separate `METADATA_DIR`/`METADATA_DIRS` may be supplied before
@@ -59,6 +60,18 @@ generator.
 `OUTDIR/NAMESPACE.winmd` contract. `METADATA_DIRS` replaces directories derived
 from `REF`, retaining unique directories in first-seen order after path
 normalization. Extra arguments are appended after these standard options.
+
+`EXPLICIT_DEPENDENCIES` disables all metadata-directory scanning, including
+directories derived from `REF`. Search paths still reach mdmerge through
+`-metadata_dir`; metadata file dependencies come only from `IN`, `REF`, and `DEPENDS`.
+List the complete consumed reference set as files in `REF` or `DEPENDS`,
+including generated WinMDs and transitive references resolved through search
+directories. Generated files need declared producing commands; a target-only
+`DEPENDS` orders generation but does not track changes to its files. Directory
+membership changes then require updating the explicit list. This mode avoids
+CMake regeneration when generated metadata directories are populated or cleaned.
+Without the option, recursive discovery and membership tracking remain unchanged
+for callers relying on directory-only dependencies.
 
 After successful merges, an output inventory removes only previously declared,
 now-obsolete files contained within the output root. Unlisted files and files
@@ -100,6 +113,7 @@ On Windows, run:
 
 ```powershell
 .\tests\generators\run.ps1 -CMake <cmake.exe> -Ninja <ninja.exe>
+.\tests\generators\run_metadata_dependencies.ps1 -CMake <cmake.exe> -Ninja <ninja.exe>
 ```
 
 The compiler-free CMake project uses synthetic metadata/resources and a fake
